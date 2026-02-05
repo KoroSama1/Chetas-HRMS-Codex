@@ -1,3 +1,4 @@
+using System;
 using System.Security.Claims;
 using AttendanceApi.DTOs.Auth;
 using AttendanceApi.Services.Interfaces;
@@ -31,18 +32,10 @@ namespace AttendanceApi.Controllers
 
                 if (result == null)
                     return Unauthorized("Invalid username or password");
-                var isHttps = HttpContext.Request.IsHttps;
                 Response.Cookies.Append(
                     "refreshToken",
                     result.RefreshToken,
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = isHttps,
-                        SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
-                        Path = "/",
-                        Expires = result.RefreshTokenExpiresAt,
-                    }
+                    BuildRefreshCookieOptions(result.RefreshTokenExpiresAt)
                 );
 
                 return Ok(
@@ -74,18 +67,10 @@ namespace AttendanceApi.Controllers
 
                 if (result == null)
                     return Unauthorized("Invalid refresh token");
-                var isHttps = HttpContext.Request.IsHttps;
                 Response.Cookies.Append(
                     "refreshToken",
                     result.RefreshToken,
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = isHttps,
-                        SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
-                        Path = "/",
-                        Expires = result.RefreshTokenExpiresAt,
-                    }
+                    BuildRefreshCookieOptions(result.RefreshTokenExpiresAt)
                 );
 
                 return Ok(
@@ -114,16 +99,9 @@ namespace AttendanceApi.Controllers
                 {
                     await _auth.LogoutAsync(refreshToken);
                 }
-                var isHttps = HttpContext.Request.IsHttps;
                 Response.Cookies.Delete(
                     "refreshToken",
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = isHttps,
-                        SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
-                        Path = "/",
-                    }
+                    BuildRefreshCookieOptions()
                 );
 
                 return Ok(new { message = "Logged out" });
@@ -146,7 +124,24 @@ namespace AttendanceApi.Controllers
             if (employeeId == null)
                 return Unauthorized();
 
-            return Ok(new { EmployeeId = employeeId, Role = role });
+                return Ok(new { EmployeeId = employeeId, Role = role });
+        }
+
+        private CookieOptions BuildRefreshCookieOptions(DateTime? expiresAt = null)
+        {
+            var forwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
+            var isHttps =
+                HttpContext.Request.IsHttps
+                || string.Equals(forwardedProto, "https", StringComparison.OrdinalIgnoreCase);
+
+            return new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isHttps,
+                SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
+                Path = "/",
+                Expires = expiresAt,
+            };
         }
     }
 }

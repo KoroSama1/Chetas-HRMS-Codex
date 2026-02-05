@@ -56,7 +56,11 @@ builder.Services.AddCors(options =>
         policy =>
         {
             policy
-                .WithOrigins("https://192.168.1.123", "http://localhost:5173")
+                .WithOrigins(
+                    "https://192.168.1.123",
+                    "https://localhost:5173",
+                    "http://localhost:5173"
+                )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -106,10 +110,13 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionMiddleware>();
 
 // to trust Nginx proxy 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
-});
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 /* ?? STATIC FILES FOR IMAGES */
 var uploadPath = builder.Configuration["FileStorage:UploadPath"];

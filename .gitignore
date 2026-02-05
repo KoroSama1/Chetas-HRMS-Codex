@@ -1,0 +1,30 @@
+# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+.env
+# API/AttendanceApi/AttendanceApi/appsettings.json
+
+# Publish
+publish/
+
+# React
+node_modules/
+dist/
+build/
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# DevOps / Deployment
+docker-compose.yml
+Jenkinsfile
+Dockerfile
+
+# SSL certificates (if you don't want to commit them)
+ssl/
+!ssl/README.md

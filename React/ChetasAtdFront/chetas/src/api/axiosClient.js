@@ -10,8 +10,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = tokenManager.get();
+    config.headers = config.headers ?? {};
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -48,7 +51,15 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           refreshQueue.push({ resolve, reject });
-        }).then(() => api(originalRequest));
+        }).then((accessToken) =>
+          api({
+            ...originalRequest,
+            headers: {
+              ...originalRequest.headers,
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
+        );
       }
 
       isRefreshing = true;
@@ -60,11 +71,17 @@ api.interceptors.response.use(
         // 🔥 THIS WAS THE MISSING LINE
         tokenManager.set(refreshRes.data.accessToken);
 
-        // Resolve queued requests
-        refreshQueue.forEach((p) => p.resolve());
+        // Resolve queued requests with the refreshed access token
+        refreshQueue.forEach((p) => p.resolve(refreshRes.data.accessToken));
         refreshQueue = [];
 
-        return api(originalRequest);
+        return api({
+          ...originalRequest,
+          headers: {
+            ...originalRequest.headers,
+            Authorization: `Bearer ${refreshRes.data.accessToken}`,
+          },
+        });
       } catch (refreshError) {
         // Refresh failed → logout
         tokenManager.clear();

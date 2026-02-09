@@ -69,9 +69,7 @@ api.interceptors.response.use(
         tokenManager.set(refreshRes.data.accessToken);
 
         // Resolve queued requests with the refreshed access token
-        refreshQueue.forEach(({ resolve }) => {
-          resolve(refreshRes.data.accessToken);
-        });
+        refreshQueue.forEach((p) => p.resolve(refreshRes.data.accessToken));
         refreshQueue = [];
 
         return api({

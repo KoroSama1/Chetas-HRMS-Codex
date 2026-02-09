@@ -86,7 +86,41 @@ builder
                     builder.Configuration["Jwt:Key"] ?? "YourSuperSecretFallbackKey123!"
                 )
             ),
-            ClockSkew = TimeSpan.Zero,
+            ClockSkew = TimeSpan.FromSeconds(
+                int.Parse(builder.Configuration["Jwt:ClockSkewSeconds"] ?? "120")
+            ),
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (context.SecurityToken is JwtSecurityToken jwt)
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("JwtAuth");
+                    logger.LogInformation(
+                        "JWT validated. Issuer={Issuer} Audience={Audience} ValidFrom={ValidFrom:o} ValidTo={ValidTo:o}",
+                        jwt.Issuer,
+                        string.Join(",", jwt.Audiences),
+                        jwt.ValidFrom,
+                        jwt.ValidTo
+                    );
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+                logger.LogWarning(
+                    context.Exception,
+                    "JWT validation failed: {Message}",
+                    context.Exception.Message
+                );
+                return Task.CompletedTask;
+            },
         };
         options.Events = new JwtBearerEvents
         {

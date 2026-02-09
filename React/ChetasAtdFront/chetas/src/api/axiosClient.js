@@ -67,7 +67,13 @@ api.interceptors.response.use(
         refreshQueue.forEach((p) => p.resolve());
         refreshQueue = [];
 
-        return api(originalRequest);
+        return api({
+          ...originalRequest,
+          headers: {
+            ...originalRequest.headers,
+            Authorization: `Bearer ${refreshRes.data.accessToken}`,
+          },
+        });
       } catch (refreshError) {
         // Refresh failed → logout
         tokenManager.clear();

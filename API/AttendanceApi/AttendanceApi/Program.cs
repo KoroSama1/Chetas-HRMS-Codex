@@ -90,6 +90,7 @@ builder
                 int.Parse(builder.Configuration["Jwt:ClockSkewSeconds"] ?? "120")
             ),
         };
+
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = context =>

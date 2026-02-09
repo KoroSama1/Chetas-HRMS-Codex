@@ -4,6 +4,7 @@ using AttendanceApi.Entities;
 using AttendanceApi.Repositories.Interfaces;
 using AttendanceApi.Services.Interfaces;
 using AttendanceApi.Utils;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace AttendanceApi.Services.Implementations
 {
@@ -11,11 +12,13 @@ namespace AttendanceApi.Services.Implementations
     {
         private readonly IAuthRepository _repo;
         private readonly JwtHelper _jwt;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IAuthRepository repo, JwtHelper jwt)
+        public AuthService(IAuthRepository repo, JwtHelper jwt, ILogger<AuthService> logger)
         {
             _repo = repo;
             _jwt = jwt;
+            _logger = logger;
         }
 
         public async Task<LoginResponseDto> LoginAsync(LoginDto dto)
@@ -25,6 +28,7 @@ namespace AttendanceApi.Services.Implementations
                 throw new AppException("Invalid username or password", HttpStatusCode.Unauthorized);
 
             var (accessToken, expiresAt) = _jwt.GenerateAccessToken(user);
+            LogAccessTokenClaims("login", accessToken);
             var refreshSecret = JwtHelper.GenerateRefreshToken();
 
             var createdAt = IstTimeProvider.Now;
@@ -94,6 +98,7 @@ namespace AttendanceApi.Services.Implementations
                 ?? throw new AppException("User not found", HttpStatusCode.Unauthorized);
 
             var (accessToken, expiresAt) = _jwt.GenerateAccessToken(user);
+            LogAccessTokenClaims("refresh", accessToken);
             var newSecret = JwtHelper.GenerateRefreshToken();
 
             // ================= GPT CHANGE START =================
@@ -131,6 +136,20 @@ namespace AttendanceApi.Services.Implementations
             stored.IsRevoked = true;
             await _repo.UpdateRefreshTokenAsync(stored);
             await _repo.SaveChangesAsync();
+        }
+
+        private void LogAccessTokenClaims(string source, string accessToken)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(accessToken);
+            _logger.LogInformation(
+                "JWT issued via {Source}. Issuer={Issuer} Audience={Audience} ValidFrom={ValidFrom:o} ValidTo={ValidTo:o}",
+                source,
+                token.Issuer,
+                string.Join(",", token.Audiences),
+                token.ValidFrom,
+                token.ValidTo
+            );
         }
     }
 }

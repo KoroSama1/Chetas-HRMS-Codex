@@ -12,6 +12,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.HttpOverrides; // to trust Nginx proxy 
+using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -87,6 +88,38 @@ builder
             ),
             ClockSkew = TimeSpan.Zero,
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (context.SecurityToken is JwtSecurityToken jwt)
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("JwtAuth");
+                    logger.LogInformation(
+                        "JWT validated. Issuer={Issuer} Audience={Audience} ValidFrom={ValidFrom:o} ValidTo={ValidTo:o}",
+                        jwt.Issuer,
+                        string.Join(",", jwt.Audiences),
+                        jwt.ValidFrom,
+                        jwt.ValidTo
+                    );
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+                logger.LogWarning(
+                    context.Exception,
+                    "JWT validation failed: {Message}",
+                    context.Exception.Message
+                );
+                return Task.CompletedTask;
+            },
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -134,6 +167,33 @@ app.UseSwaggerUI();
 
 // app.UseRouting() is implicit in .NET 6+, but keeping it is fine.
 app.UseRouting();
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        var logger = context.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("JwtAuth");
+        if (context.Request.Headers.TryGetValue("Authorization", out var authHeader))
+        {
+            logger.LogInformation(
+                "Incoming Authorization header for {Path}: {Authorization}",
+                context.Request.Path,
+                authHeader.ToString()
+            );
+        }
+        else
+        {
+            logger.LogInformation(
+                "No Authorization header for {Path}",
+                context.Request.Path
+            );
+        }
+    }
+
+    await next();
+});
 
 // CORS must be strictly after UseRouting and before UseAuthentication
 app.UseCors("AllowFrontend");

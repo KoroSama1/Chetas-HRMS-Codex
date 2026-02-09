@@ -70,6 +70,11 @@ api.interceptors.response.use(
 
         // Resolve queued requests with the refreshed access token
         refreshQueue.forEach((p) => p.resolve(refreshRes.data.accessToken));
+        // Ensure retried request uses the new access token
+        originalRequest.headers.Authorization = `Bearer ${refreshRes.data.accessToken}`;
+
+        // Resolve queued requests
+        refreshQueue.forEach((p) => p.resolve());
         refreshQueue = [];
 
         return api({

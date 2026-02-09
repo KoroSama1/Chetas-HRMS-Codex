@@ -60,6 +60,9 @@ api.interceptors.response.use(
         // 🔥 THIS WAS THE MISSING LINE
         tokenManager.set(refreshRes.data.accessToken);
 
+        // Ensure retried request uses the new access token
+        originalRequest.headers.Authorization = `Bearer ${refreshRes.data.accessToken}`;
+
         // Resolve queued requests
         refreshQueue.forEach((p) => p.resolve());
         refreshQueue = [];

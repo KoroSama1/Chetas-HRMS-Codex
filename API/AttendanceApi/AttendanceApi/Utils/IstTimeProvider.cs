@@ -6,6 +6,7 @@
             "India Standard Time"
         );
 
-        public static DateTime Now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IstZone);
+        public static DateTime Now =>
+            TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IstZone);
     }
 }
